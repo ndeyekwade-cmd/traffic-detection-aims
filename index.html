@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Traffic Detection — AIMS Sénégal</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+  :root {
+    --bg:           #0d0305;
+    --surface:      #180608;
+    --card:         #1f080c;
+    --card-hover:   #261019;
+    --border:       #3d1018;
+    --border-light: #5a1a25;
+    --accent:       #8b1a2a;
+    --accent-light: #b52236;
+    --accent-glow:  rgba(139,26,42,0.25);
+    --gold:         #c8a86a;
+    --gold-light:   #e2c78a;
+    --text:         #f5eeee;
+    --text-soft:    #ddd0d0;
+    --muted:        #9a7070;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter','Segoe UI',system-ui,sans-serif; min-height: 100vh; line-height: 1.5; }
+
+  /* HEADER */
+  header {
+    background: linear-gradient(135deg, #1a0508 0%, #2a0b12 50%, #1a0508 100%);
+    border-bottom: 1px solid var(--border-light);
+    padding: 0 40px; height: 68px;
+    display: flex; align-items: center; gap: 16px;
+    position: sticky; top: 0; z-index: 100;
+    box-shadow: 0 2px 20px rgba(0,0,0,.5);
+  }
+  .header-logo {
+    width: 38px; height: 38px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-light));
+    border-radius: 10px; display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem; font-weight: 800; color: white; letter-spacing: -1px;
+    box-shadow: 0 0 16px var(--accent-glow); flex-shrink: 0;
+  }
+  .header-title { display: flex; flex-direction: column; }
+  .header-title h1 { font-size: 1.05rem; font-weight: 700; letter-spacing: -.02em; }
+  .header-title p  { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .header-divider  { width: 1px; height: 30px; background: var(--border-light); margin: 0 4px; }
+  .header-right    { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .badge      { background: linear-gradient(135deg,var(--accent),var(--accent-light)); color:#fff; font-size:.68rem; padding:3px 10px; border-radius:99px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; box-shadow:0 2px 8px var(--accent-glow); }
+  .badge-gold { background: linear-gradient(135deg,#8a6520,var(--gold)); color:#1a0a00; font-size:.68rem; padding:3px 10px; border-radius:99px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; }
+
+  /* TABS */
+  .tab-nav { display: flex; gap: 4px; padding: 14px 40px 0; border-bottom: 1px solid var(--border); background: var(--surface); }
+  .tab-btn {
+    padding: 9px 22px; border: 1px solid transparent; border-bottom: none;
+    border-radius: 8px 8px 0 0; cursor: pointer; font-size: .85rem; font-weight: 600;
+    font-family: inherit; color: var(--muted); background: transparent; transition: .2s;
+  }
+  .tab-btn:hover { color: var(--text-soft); background: var(--card); }
+  .tab-btn.active { background: var(--card); border-color: var(--border-light); color: var(--gold); border-bottom-color: var(--card); }
+
+  /* LAYOUT */
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  main { max-width: 1280px; margin: 0 auto; padding: 28px 24px; display: grid; grid-template-columns: 340px 1fr; gap: 20px; }
+  .right { display: flex; flex-direction: column; gap: 18px; }
+
+  /* CARDS */
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; position: relative; }
+  .card::before { content:''; position:absolute; top:0; left:0; width:3px; height:100%; background:linear-gradient(180deg,var(--accent),transparent); border-radius:14px 0 0 14px; opacity:.6; }
+  .card-title { font-size:.7rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.1em; margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+  .card-title::after { content:''; flex:1; height:1px; background:var(--border); }
+
+  /* DROP ZONE */
+  #drop-zone { border:2px dashed var(--border-light); border-radius:12px; padding:28px 16px; text-align:center; cursor:pointer; transition:.25s; background:rgba(139,26,42,.04); }
+  #drop-zone:hover, #drop-zone.drag-over { border-color:var(--accent-light); background:rgba(139,26,42,.12); box-shadow:0 0 20px var(--accent-glow); }
+  .drop-icon { font-size:2.2rem; margin-bottom:10px; display:block; filter:drop-shadow(0 0 8px rgba(200,168,106,.4)); }
+  #drop-zone strong { color:var(--text-soft); font-weight:600; font-size:.92rem; }
+  #drop-zone p { color:var(--muted); font-size:.8rem; margin-top:3px; }
+  #file-input { display:none; }
+  #file-name { margin-top:10px; font-size:.8rem; color:var(--gold); font-weight:500; min-height:18px; display:flex; align-items:center; justify-content:center; gap:6px; }
+
+  /* CHECKBOXES */
+  .class-grid { display:grid; grid-template-columns:1fr 1fr; gap:7px; }
+  .cls-cb { display:flex; align-items:center; gap:8px; padding:8px 11px; background:var(--surface); border-radius:9px; cursor:pointer; font-size:.83rem; font-weight:500; border:1px solid var(--border); transition:.18s; color:var(--text-soft); user-select:none; }
+  .cls-cb:hover { border-color:var(--border-light); background:var(--card-hover); }
+  .cls-cb input { display:none; }
+  .cls-dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; box-shadow:0 0 5px currentColor; }
+  .cls-cb.checked { border-color:var(--border-light); background:rgba(139,26,42,.15); color:var(--text); }
+  .cls-cb.checked .cls-dot { box-shadow:0 0 8px currentColor; }
+
+  /* SLIDER */
+  .slider-wrap { display:flex; flex-direction:column; gap:10px; }
+  .slider-row  { display:flex; align-items:center; gap:10px; }
+  input[type=range] { flex:1; height:4px; accent-color:var(--accent-light); cursor:pointer; }
+  .slider-labels { display:flex; justify-content:space-between; font-size:.72rem; color:var(--muted); }
+  #conf-val { min-width:38px; text-align:center; font-weight:700; color:var(--gold); font-size:1rem; background:rgba(200,168,106,.1); border:1px solid rgba(200,168,106,.2); border-radius:6px; padding:2px 6px; }
+
+  /* BUTTON */
+  #btn-analyse { width:100%; padding:14px; border:1px solid var(--border-light); border-radius:11px; background:linear-gradient(135deg,var(--accent) 0%,#5c0f1a 100%); color:#fff; font-size:.95rem; font-weight:700; cursor:pointer; margin-top:18px; transition:.2s; letter-spacing:.04em; text-transform:uppercase; box-shadow:0 4px 16px var(--accent-glow); font-family:inherit; }
+  #btn-analyse:hover:not(:disabled) { background:linear-gradient(135deg,var(--accent-light),var(--accent)); box-shadow:0 6px 24px rgba(139,26,42,.45); transform:translateY(-1px); }
+  #btn-analyse:disabled { opacity:.35; cursor:not-allowed; transform:none; box-shadow:none; }
+
+  /* PROGRESS */
+  #progress-wrap { margin-top:16px; display:none; }
+  #prog-label { font-size:.8rem; color:var(--muted); margin-bottom:8px; font-weight:500; }
+  .prog-bar { height:6px; background:var(--surface); border-radius:99px; overflow:hidden; border:1px solid var(--border); }
+  .prog-fill { height:100%; background:linear-gradient(90deg,var(--accent),var(--accent-light),var(--gold)); border-radius:99px; transition:width .5s cubic-bezier(.4,0,.2,1); width:0%; box-shadow:0 0 10px var(--accent-glow); }
+  #prog-pct { font-size:.78rem; color:var(--gold); margin-top:5px; text-align:right; font-weight:600; }
+
+  /* VIEWER */
+  #viewer-wrap { position:relative; background:#050101; border-radius:12px; overflow:hidden; aspect-ratio:16/9; border:1px solid var(--border); display:flex; align-items:center; justify-content:center; }
+  #frame-img { width:100%; height:100%; object-fit:contain; display:none; }
+  #no-frame-msg { display:flex; flex-direction:column; align-items:center; gap:10px; color:var(--muted); font-size:.88rem; }
+  #no-frame-msg span { font-size:2rem; opacity:.4; }
+
+  /* FRAME CONTROLS */
+  .frame-controls { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:12px; }
+  .frame-controls button { background:var(--surface); border:1px solid var(--border); color:var(--text-soft); padding:6px 16px; border-radius:8px; cursor:pointer; font-size:.82rem; font-weight:600; font-family:inherit; transition:.15s; }
+  .frame-controls button:hover { border-color:var(--accent-light); color:var(--accent-light); background:rgba(139,26,42,.1); }
+  #frame-slider { flex:1; min-width:100px; accent-color:var(--accent-light); }
+  #frame-info { font-size:.78rem; color:var(--muted); white-space:nowrap; font-weight:500; }
+
+  /* COUNTERS */
+  .counters-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); gap:10px; }
+  .counter-box { background:var(--surface); border:1px solid var(--border); border-radius:11px; padding:14px 10px; text-align:center; transition:.2s; }
+  .counter-box:hover { border-color:var(--border-light); }
+  .cnt-label { font-size:.72rem; color:var(--muted); margin-bottom:6px; display:flex; align-items:center; justify-content:center; gap:5px; text-transform:uppercase; letter-spacing:.06em; font-weight:600; }
+  .cnt-val { font-size:2rem; font-weight:800; color:var(--text); line-height:1; }
+  .cnt-val.active { color:var(--gold-light); }
+  .empty-msg { text-align:center; color:var(--muted); font-size:.85rem; padding:14px; display:none; border:1px dashed var(--border); border-radius:8px; margin-top:8px; }
+
+  /* STATS TABLE */
+  .table-wrap { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:.875rem; }
+  thead tr { border-bottom:1px solid var(--border-light); }
+  th { text-align:left; color:var(--muted); font-weight:700; padding:10px 12px; font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; }
+  td { padding:11px 12px; border-bottom:1px solid var(--border); color:var(--text-soft); }
+  tr:last-child td { border-bottom:none; }
+  tbody tr:hover td { background:rgba(139,26,42,.08); color:var(--text); }
+  td:nth-child(2), td:nth-child(3) { font-weight:600; color:var(--text); font-variant-numeric:tabular-nums; }
+  .dir-badge { display:inline-block; font-size:1rem; background:rgba(200,168,106,.12); border:1px solid rgba(200,168,106,.25); border-radius:6px; padding:1px 8px; color:var(--gold); }
+  #stats-empty { text-align:center; color:var(--muted); padding:28px; font-size:.85rem; }
+
+  /* CHART */
+  .chart-wrap { position:relative; height:220px; }
+
+  /* DASHBOARD */
+  .dashboard-wrap { max-width:1280px; margin:0 auto; padding:28px 24px; }
+  .dash-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; }
+  .dash-header h2 { font-size:1rem; font-weight:700; }
+  .btn-refresh { background:var(--surface); border:1px solid var(--border-light); color:var(--text-soft); padding:8px 18px; border-radius:9px; cursor:pointer; font-size:.83rem; font-weight:600; font-family:inherit; transition:.15s; }
+  .btn-refresh:hover { border-color:var(--accent-light); color:var(--accent-light); }
+  .video-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px; margin-bottom:28px; }
+  .video-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:18px; position:relative; }
+  .video-card::before { content:''; position:absolute; top:0; left:0; width:3px; height:100%; background:linear-gradient(180deg,var(--gold),transparent); border-radius:14px 0 0 14px; }
+  .vc-title { font-size:.8rem; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.06em; margin-bottom:4px; }
+  .vc-name { font-size:.95rem; font-weight:700; margin-bottom:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .vc-stats { display:flex; flex-wrap:wrap; gap:6px; }
+  .vc-stat { background:var(--surface); border:1px solid var(--border); border-radius:7px; padding:4px 10px; font-size:.78rem; display:flex; align-items:center; gap:5px; }
+  .vc-stat strong { color:var(--gold); font-weight:700; }
+  .dash-empty { text-align:center; color:var(--muted); padding:60px; font-size:.9rem; }
+  .dash-chart-title { font-size:.7rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.1em; margin-bottom:16px; display:flex; align-items:center; gap:8px; }
+  .dash-chart-title::after { content:''; flex:1; height:1px; background:var(--border); }
+
+  /* FOOTER */
+  footer { text-align:center; padding:24px; color:var(--muted); font-size:.75rem; border-top:1px solid var(--border); margin-top:8px; }
+  footer span { color:var(--accent-light); }
+
+  @media (max-width:900px) { main { grid-template-columns:1fr; } header { padding:0 20px; } .tab-nav { padding:14px 20px 0; } }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="header-logo">A</div>
+  <div class="header-divider"></div>
+  <div class="header-title">
+    <h1>Traffic Detection &amp; Tracking</h1>
+    <p>AIMS Sénégal &mdash; Computer Vision Project</p>
+  </div>
+  <div class="header-right">
+    <span class="badge-gold">YOLOv8m</span>
+    <span class="badge">ByteTrack</span>
+  </div>
+</header>
+
+<!-- TABS -->
+<div class="tab-nav">
+  <button class="tab-btn active" onclick="switchTab('analyse')">Analyse</button>
+  <button class="tab-btn" onclick="switchTab('dashboard')">Dashboard multi-scènes</button>
+</div>
+
+<!-- ══════════════ TAB ANALYSE ══════════════ -->
+<div id="tab-analyse" class="tab-content active">
+<main>
+  <!-- LEFT -->
+  <aside style="display:flex;flex-direction:column;gap:16px">
+    <div class="card">
+      <div class="card-title">Source vidéo</div>
+      <div id="drop-zone">
+        <span class="drop-icon">🎬</span>
+        <strong>Glisser &amp; déposer</strong>
+        <p>ou cliquer pour sélectionner</p>
+        <div id="file-name"></div>
+      </div>
+      <input type="file" id="file-input" accept="video/*">
+    </div>
+
+    <div class="card">
+      <div class="card-title">Classes à détecter</div>
+      <div class="class-grid" id="class-grid"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Seuil de confiance</div>
+      <div class="slider-wrap">
+        <div class="slider-row">
+          <input type="range" id="conf-slider" min="0.1" max="0.9" step="0.05" value="0.3">
+          <span id="conf-val">0.30</span>
+        </div>
+        <div class="slider-labels"><span>0.10</span><span>0.50</span><span>0.90</span></div>
+      </div>
+    </div>
+
+    <button id="btn-analyse" disabled>&#9654;&nbsp; Lancer l'analyse</button>
+
+    <div id="progress-wrap" class="card" style="padding:16px">
+      <p id="prog-label">Analyse en cours…</p>
+      <div class="prog-bar" style="margin-top:8px"><div class="prog-fill" id="prog-fill"></div></div>
+      <div id="prog-pct">0%</div>
+    </div>
+  </aside>
+
+  <!-- RIGHT -->
+  <div class="right">
+    <!-- Viewer -->
+    <div class="card">
+      <div class="card-title">Frame annotée</div>
+      <div id="viewer-wrap">
+        <img id="frame-img" alt="frame annotée">
+        <div id="no-frame-msg"><span>🎞️</span>Lancez une analyse pour visualiser les frames</div>
+      </div>
+      <div class="frame-controls">
+        <button id="btn-prev">&#9664; Préc</button>
+        <input type="range" id="frame-slider" min="0" value="0" step="1">
+        <button id="btn-next">Suiv &#9654;</button>
+        <span id="frame-info">—</span>
+      </div>
+    </div>
+
+    <!-- Counters -->
+    <div class="card">
+      <div class="card-title">Détections — frame courante</div>
+      <div class="counters-grid" id="counters-grid"></div>
+      <div class="empty-msg" id="empty-msg">Aucun objet détecté dans cette frame</div>
+    </div>
+
+    <!-- Stats + direction -->
+    <div class="card">
+      <div class="card-title">Statistiques finales</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Classe</th>
+              <th>Objets uniques</th>
+              <th>Durée moy. (s)</th>
+              <th>Direction dominante</th>
+            </tr>
+          </thead>
+          <tbody id="stats-body"></tbody>
+        </table>
+      </div>
+      <div id="stats-empty">Les statistiques s'afficheront après l'analyse.</div>
+    </div>
+
+    <!-- Temporal chart -->
+    <div class="card">
+      <div class="card-title">Distribution temporelle du trafic</div>
+      <div class="chart-wrap">
+        <canvas id="temporal-chart"></canvas>
+      </div>
+      <div id="temporal-empty" style="text-align:center;color:var(--muted);padding:28px;font-size:.85rem">
+        Le graphique s'affichera après l'analyse.
+      </div>
+    </div>
+  </div>
+</main>
+</div>
+
+<!-- ══════════════ TAB DASHBOARD ══════════════ -->
+<div id="tab-dashboard" class="tab-content">
+  <div class="dashboard-wrap">
+    <div class="dash-header">
+      <h2>Comparaison multi-scènes</h2>
+      <button class="btn-refresh" onclick="loadDashboard()">&#8635; Rafraîchir</button>
+    </div>
+
+    <div id="video-cards" class="video-cards"></div>
+
+    <div class="card" id="dash-chart-card" style="display:none">
+      <div class="dash-chart-title">Objets uniques par classe &amp; par scène</div>
+      <div class="chart-wrap" style="height:280px">
+        <canvas id="dashboard-chart"></canvas>
+      </div>
+    </div>
+
+    <div id="dash-empty" class="dash-empty">Aucune scène analysée. Lancez une analyse pour voir le dashboard.</div>
+  </div>
+</div>
+
+<footer>
+  African Institute for Mathematical Sciences
+  <br><span style="color:var(--gold);font-weight:600;letter-spacing:0.08em">Khadija &nbsp;&bull;&nbsp; Adama &nbsp;&bull;&nbsp; Ismaila</span>
+</footer>
+
+<script>
+const CLASS_CONFIG = [
+  { id:2, name:"car",        label:"Voiture",  color:"#00e676" },
+  { id:7, name:"truck",      label:"Camion",   color:"#ff5252" },
+  { id:5, name:"bus",        label:"Bus",      color:"#ff9100" },
+  { id:3, name:"motorcycle", label:"Moto",     color:"#ea80fc" },
+  { id:1, name:"bicycle",    label:"Vélo",     color:"#40c4ff" },
+  { id:0, name:"person",     label:"Personne", color:"#ffd740" },
+];
+
+let videoId=null, frameCount=0, currentFrame=0, pollInterval=null, frameData={};
+let temporalChart=null, dashboardChart=null;
+
+// ── Tabs ──
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if (name === 'dashboard') loadDashboard();
+}
+
+// ── Build checkboxes ──
+const classGrid = document.getElementById('class-grid');
+CLASS_CONFIG.forEach(cls => {
+  const label = document.createElement('label');
+  label.className = 'cls-cb checked';
+  label.innerHTML = `<input type="checkbox" value="${cls.id}" checked>
+    <span class="cls-dot" style="background:${cls.color};color:${cls.color}"></span>${cls.label}`;
+  label.querySelector('input').addEventListener('change', e => label.classList.toggle('checked', e.target.checked));
+  classGrid.appendChild(label);
+});
+
+// ── Build counters ──
+const countersGrid = document.getElementById('counters-grid');
+CLASS_CONFIG.forEach(cls => {
+  const box = document.createElement('div');
+  box.className = 'counter-box'; box.id = `cnt-${cls.name}`;
+  box.innerHTML = `<div class="cnt-label"><span class="cls-dot" style="background:${cls.color};color:${cls.color};width:7px;height:7px"></span>${cls.label}</div>
+    <div class="cnt-val" id="cnt-val-${cls.name}">—</div>`;
+  countersGrid.appendChild(box);
+});
+
+// ── Confidence slider ──
+const confSlider = document.getElementById('conf-slider');
+confSlider.addEventListener('input', () =>
+  document.getElementById('conf-val').textContent = parseFloat(confSlider.value).toFixed(2));
+
+// ── Drop zone ──
+const dropZone=document.getElementById('drop-zone'), fileInput=document.getElementById('file-input');
+let selectedFile=null;
+dropZone.addEventListener('click', ()=>fileInput.click());
+dropZone.addEventListener('dragover', e=>{e.preventDefault();dropZone.classList.add('drag-over');});
+dropZone.addEventListener('dragleave', ()=>dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e=>{e.preventDefault();dropZone.classList.remove('drag-over');if(e.dataTransfer.files[0])setFile(e.dataTransfer.files[0]);});
+fileInput.addEventListener('change', ()=>{if(fileInput.files[0])setFile(fileInput.files[0]);});
+function setFile(f){selectedFile=f;document.getElementById('file-name').innerHTML=`&#10003; ${f.name}`;document.getElementById('btn-analyse').disabled=false;}
+
+// ── Analyse ──
+document.getElementById('btn-analyse').addEventListener('click', async ()=>{
+  if(!selectedFile) return;
+  document.getElementById('btn-analyse').disabled=true;
+  resetUI();
+  const fd=new FormData(); fd.append('file',selectedFile);
+  let res=await fetch('/upload',{method:'POST',body:fd});
+  if(!res.ok){alert('Erreur upload');return;}
+  videoId=(await res.json()).video_id;
+  const selCls=[...document.querySelectorAll('.cls-cb input:checked')].map(i=>i.value).join(',');
+  const fa=new FormData(); fa.append('video_id',videoId); fa.append('classes',selCls); fa.append('confidence',confSlider.value);
+  res=await fetch('/analyser',{method:'POST',body:fa});
+  if(!res.ok){alert('Erreur analyse');return;}
+  showProgress(true);
+  pollInterval=setInterval(pollProgress,1500);
+});
+
+async function pollProgress(){
+  if(!videoId) return;
+  const d=await(await fetch(`/progress/${videoId}`)).json();
+  setProgress(d.percent);
+  document.getElementById('prog-label').textContent=
+    d.status==='done' ? '✓ Analyse terminée !' : `Traitement en cours… ${d.done}/${d.total} frames`;
+  if(d.status==='done'){clearInterval(pollInterval);await onAnalysisDone();}
+  else if(d.status.startsWith('error')){clearInterval(pollInterval);alert('Erreur: '+d.status);}
+}
+
+async function onAnalysisDone(){
+  const d=await(await fetch(`/frame_count/${videoId}`)).json();
+  frameCount=d.frame_count;
+  const sl=document.getElementById('frame-slider'); sl.max=frameCount-1; sl.value=0; currentFrame=0;
+  await Promise.all([loadFrame(0), loadStats(), buildFrameCountCache(), loadTemporalChart()]);
+  document.getElementById('btn-analyse').disabled=false;
+}
+
+// ── Frame data cache ──
+async function buildFrameCountCache(){
+  const d=await(await fetch(`/logs/${videoId}`)).json();
+  frameData={};
+  for(const row of d.logs){
+    const fid=parseInt(row.frame_id);
+    if(!frameData[fid]) frameData[fid]={};
+    frameData[fid][row.class]=(frameData[fid][row.class]||0)+1;
+  }
+}
+
+// ── Frame viewer ──
+async function loadFrame(fid){
+  currentFrame=fid;
+  document.getElementById('frame-slider').value=fid;
+  document.getElementById('frame-info').textContent=`Frame ${fid+1} / ${frameCount}`;
+  const img=document.getElementById('frame-img');
+  img.src=`/frame/${videoId}/${fid}`; img.style.display='block';
+  document.getElementById('no-frame-msg').style.display='none';
+  updateCounters(fid);
+}
+function updateCounters(fid){
+  const data=frameData[fid]||{}; let total=0;
+  CLASS_CONFIG.forEach(cls=>{
+    const cnt=data[cls.name]||0;
+    const el=document.getElementById(`cnt-val-${cls.name}`);
+    el.textContent=cnt; el.className='cnt-val'+(cnt>0?' active':''); total+=cnt;
+  });
+  document.getElementById('empty-msg').style.display=total===0?'block':'none';
+}
+
+// ── Stats + direction ──
+async function loadStats(){
+  const d=await(await fetch(`/stats/${videoId}`)).json();
+  const tbody=document.getElementById('stats-body'); tbody.innerHTML='';
+  document.getElementById('stats-empty').style.display='none';
+  const classMap=Object.fromEntries(CLASS_CONFIG.map(c=>[c.name,c]));
+  Object.entries(d.stats).forEach(([cls,s])=>{
+    const cfg=classMap[cls]||{label:cls,color:'#888'};
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td style="display:flex;align-items:center;gap:9px">
+        <span style="width:10px;height:10px;border-radius:50%;background:${cfg.color};display:inline-block;box-shadow:0 0 6px ${cfg.color}66"></span>
+        <span style="font-weight:600">${cfg.label||cls}</span>
+      </td>
+      <td>${s.unique_objects}</td>
+      <td>${s.avg_duration_sec}s</td>
+      <td><span class="dir-badge">${s.dominant_direction}</span></td>`;
+    tbody.appendChild(tr);
+  });
+  if(!tbody.children.length) document.getElementById('stats-empty').style.display='block';
+}
+
+// ── Temporal chart ──
+async function loadTemporalChart(){
+  const d=await(await fetch(`/temporal/${videoId}?interval=5`)).json();
+  const labels=Object.keys(d.data);
+  if(!labels.length) return;
+  document.getElementById('temporal-empty').style.display='none';
+  const datasets=CLASS_CONFIG.map(cls=>({
+    label: cls.label,
+    data: labels.map(t=>d.data[t]?.[cls.name]||0),
+    borderColor: cls.color,
+    backgroundColor: cls.color+'22',
+    tension: 0.35,
+    fill: true,
+    pointRadius: 2,
+  }));
+  if(temporalChart) temporalChart.destroy();
+  temporalChart=new Chart(document.getElementById('temporal-chart'),{
+    type:'line',
+    data:{labels, datasets},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#ddd0d0',font:{size:11}}}},
+      scales:{
+        x:{ticks:{color:'#9a7070',maxTicksLimit:12},grid:{color:'#3d1018'},title:{display:true,text:'Temps (s)',color:'#9a7070'}},
+        y:{ticks:{color:'#9a7070'},grid:{color:'#3d1018'},beginAtZero:true,title:{display:true,text:'Objets visibles',color:'#9a7070'}}
+      }
+    }
+  });
+}
+
+// ── Dashboard ──
+async function loadDashboard(){
+  const d=await(await fetch('/dashboard')).json();
+  const container=document.getElementById('video-cards');
+  const dashEmpty=document.getElementById('dash-empty');
+  const chartCard=document.getElementById('dash-chart-card');
+  container.innerHTML='';
+
+  if(!d.videos.length){dashEmpty.style.display='block';chartCard.style.display='none';return;}
+  dashEmpty.style.display='none'; chartCard.style.display='block';
+
+  const classMap=Object.fromEntries(CLASS_CONFIG.map(c=>[c.name,c]));
+
+  d.videos.forEach(v=>{
+    const card=document.createElement('div'); card.className='video-card';
+    const statsHtml=Object.entries(v.stats).map(([cls,cnt])=>{
+      const cfg=classMap[cls]||{label:cls,color:'#888'};
+      return `<span class="vc-stat"><span class="cls-dot" style="background:${cfg.color};color:${cfg.color};width:7px;height:7px;border-radius:50%;display:inline-block"></span>${cfg.label||cls} <strong>${cnt}</strong></span>`;
+    }).join('');
+    card.innerHTML=`
+      <div class="vc-title">Scène analysée</div>
+      <div class="vc-name" title="${v.filename}">📹 ${v.filename}</div>
+      <div class="vc-stats">${statsHtml||'<span style="color:var(--muted);font-size:.8rem">Aucune détection</span>'}</div>`;
+    container.appendChild(card);
+  });
+
+  // Comparison bar chart
+  const classes=CLASS_CONFIG.map(c=>c.name);
+  const clsLabels=CLASS_CONFIG.map(c=>c.label);
+  const videoColors=['#b52236','#c8a86a','#40c4ff','#ea80fc','#ff9100','#00e676'];
+  const datasets=d.videos.map((v,i)=>({
+    label: v.filename.length>30?v.filename.slice(0,28)+'…':v.filename,
+    data: classes.map(cls=>v.stats[cls]||0),
+    backgroundColor: (videoColors[i%videoColors.length])+'cc',
+    borderColor:      videoColors[i%videoColors.length],
+    borderWidth: 1, borderRadius: 4,
+  }));
+
+  if(dashboardChart) dashboardChart.destroy();
+  dashboardChart=new Chart(document.getElementById('dashboard-chart'),{
+    type:'bar',
+    data:{labels:clsLabels, datasets},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#ddd0d0',font:{size:11}}}},
+      scales:{
+        x:{ticks:{color:'#9a7070'},grid:{color:'#3d1018'}},
+        y:{ticks:{color:'#9a7070'},grid:{color:'#3d1018'},beginAtZero:true,title:{display:true,text:'Objets uniques',color:'#9a7070'}}
+      }
+    }
+  });
+}
+
+// ── Navigation ──
+document.getElementById('frame-slider').addEventListener('input',e=>{if(videoId&&frameCount>0)loadFrame(parseInt(e.target.value));});
+document.getElementById('btn-prev').addEventListener('click',()=>{if(currentFrame>0)loadFrame(currentFrame-1);});
+document.getElementById('btn-next').addEventListener('click',()=>{if(currentFrame<frameCount-1)loadFrame(currentFrame+1);});
+
+// ── Helpers ──
+function showProgress(v){document.getElementById('progress-wrap').style.display=v?'block':'none';}
+function setProgress(pct){document.getElementById('prog-fill').style.width=pct+'%';document.getElementById('prog-pct').textContent=pct+'%';}
+function resetUI(){
+  frameData={}; frameCount=0; currentFrame=0;
+  document.getElementById('frame-img').style.display='none';
+  document.getElementById('no-frame-msg').style.display='flex';
+  document.getElementById('stats-body').innerHTML='';
+  document.getElementById('stats-empty').style.display='block';
+  document.getElementById('empty-msg').style.display='none';
+  document.getElementById('temporal-empty').style.display='block';
+  if(temporalChart){temporalChart.destroy();temporalChart=null;}
+  CLASS_CONFIG.forEach(cls=>{const el=document.getElementById(`cnt-val-${cls.name}`);el.textContent='—';el.className='cnt-val';});
+  setProgress(0);
+}
+</script>
+</body>
+</html>

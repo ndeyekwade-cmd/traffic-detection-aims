@@ -1,0 +1,22 @@
+# Data & outputs (videos + generated frames/logs)
+data/
+
+# Model weights
+*.pt
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+venv/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
