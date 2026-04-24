@@ -1,3 +1,13 @@
+---
+title: Traffic Detection AIMS
+emoji: 🚗
+colorFrom: red
+colorTo: yellow
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # Road Traffic Object Detection & Tracking
 
 **AIMS Sénégal — Computer Vision Project 2 — April 2026**  
