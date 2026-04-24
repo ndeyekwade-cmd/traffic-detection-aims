@@ -1,8 +1,7 @@
 # Road Traffic Object Detection & Tracking
 
 **AIMS Sénégal — Computer Vision Project 2 — April 2026**  
-**Group:** Khadija · Adama · Ismaila
-
+**Group:** Ndeye Khady Wade · Adama Telly Ba · Ismaila Tikome Nana
 ---
 
 ## Overview
