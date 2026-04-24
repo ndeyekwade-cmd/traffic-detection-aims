@@ -1,14 +1,5 @@
-# Modèles lourds
-*.pt
-
 # Données générées
 data/
-
-# Vidéos
-*.mp4
-*.avi
-*.mov
-*.mkv
 
 # Python
 __pycache__/
