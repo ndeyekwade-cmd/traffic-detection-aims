@@ -1,21 +1,22 @@
-# Data & outputs (videos + generated frames/logs)
+# Modèles lourds
+*.pt
+
+# Données générées
 data/
 
-# Model weights
-*.pt
+# Vidéos
+*.mp4
+*.avi
+*.mov
+*.mkv
 
 # Python
 __pycache__/
 *.pyc
 *.pyo
-*.pyd
-.env
-venv/
 .venv/
-
-# IDE
-.vscode/
-.idea/
+venv/
+env/
 
 # OS
 .DS_Store

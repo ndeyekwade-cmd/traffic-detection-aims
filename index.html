@@ -245,8 +245,15 @@
       </div>
       <div class="frame-controls">
         <button id="btn-prev">&#9664; Préc</button>
+        <button id="btn-play" disabled>&#9654; Lecture</button>
         <input type="range" id="frame-slider" min="0" value="0" step="1">
         <button id="btn-next">Suiv &#9654;</button>
+        <select id="speed-select" style="background:var(--surface);border:1px solid var(--border);color:var(--text-soft);padding:5px 8px;border-radius:8px;font-family:inherit;font-size:.82rem;cursor:pointer">
+          <option value="200">5 fps</option>
+          <option value="100" selected>10 fps</option>
+          <option value="50">20 fps</option>
+          <option value="33">30 fps</option>
+        </select>
         <span id="frame-info">—</span>
       </div>
     </div>
@@ -327,7 +334,7 @@ const CLASS_CONFIG = [
   { id:0, name:"person",     label:"Personne", color:"#ffd740" },
 ];
 
-let videoId=null, frameCount=0, currentFrame=0, pollInterval=null, frameData={};
+let videoId=null, frameCount=0, currentFrame=0, pollInterval=null, frameData={}, playInterval=null, isPlaying=false;
 let temporalChart=null, dashboardChart=null;
 
 // ── Tabs ──
@@ -407,6 +414,7 @@ async function onAnalysisDone(){
   frameCount=d.frame_count;
   const sl=document.getElementById('frame-slider'); sl.max=frameCount-1; sl.value=0; currentFrame=0;
   await Promise.all([loadFrame(0), loadStats(), buildFrameCountCache(), loadTemporalChart()]);
+  document.getElementById('btn-play').disabled=false;
   document.getElementById('btn-analyse').disabled=false;
 }
 
@@ -548,13 +556,38 @@ async function loadDashboard(){
 
 // ── Navigation ──
 document.getElementById('frame-slider').addEventListener('input',e=>{if(videoId&&frameCount>0)loadFrame(parseInt(e.target.value));});
-document.getElementById('btn-prev').addEventListener('click',()=>{if(currentFrame>0)loadFrame(currentFrame-1);});
-document.getElementById('btn-next').addEventListener('click',()=>{if(currentFrame<frameCount-1)loadFrame(currentFrame+1);});
+document.getElementById('btn-prev').addEventListener('click',()=>{stopPlay();if(currentFrame>0)loadFrame(currentFrame-1);});
+document.getElementById('btn-next').addEventListener('click',()=>{stopPlay();if(currentFrame<frameCount-1)loadFrame(currentFrame+1);});
+
+document.getElementById('btn-play').addEventListener('click',()=>{
+  if(isPlaying) stopPlay(); else startPlay();
+});
+document.getElementById('speed-select').addEventListener('change',()=>{
+  if(isPlaying){stopPlay();startPlay();}
+});
+
+function startPlay(){
+  if(!videoId||frameCount===0) return;
+  isPlaying=true;
+  document.getElementById('btn-play').textContent='⏸ Pause';
+  const delay=parseInt(document.getElementById('speed-select').value);
+  playInterval=setInterval(()=>{
+    const next=currentFrame+1<frameCount?currentFrame+1:0;
+    loadFrame(next);
+  },delay);
+}
+function stopPlay(){
+  isPlaying=false;
+  clearInterval(playInterval); playInterval=null;
+  document.getElementById('btn-play').textContent='▶ Lecture';
+}
 
 // ── Helpers ──
 function showProgress(v){document.getElementById('progress-wrap').style.display=v?'block':'none';}
 function setProgress(pct){document.getElementById('prog-fill').style.width=pct+'%';document.getElementById('prog-pct').textContent=pct+'%';}
 function resetUI(){
+  stopPlay();
+  document.getElementById('btn-play').disabled=true;
   frameData={}; frameCount=0; currentFrame=0;
   document.getElementById('frame-img').style.display='none';
   document.getElementById('no-frame-msg').style.display='flex';
